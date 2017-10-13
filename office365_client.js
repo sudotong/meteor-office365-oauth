@@ -15,8 +15,9 @@ Office365.requestCredential = function(options, credentialRequestCompleteCallbac
   }
 
   const credentialToken = Random.secret();
-
-  const scope = (options && options.requestPermissions) || config.permissions || ['offline_access', 'user.read'];
+  if (!options) options = {};
+  if (!options.requestPermissions) options.requestPermissions = config.permissions;
+  const scope = options.requestPermissions || ['offline_access', 'user.read'];
   const flatScope = _.map(scope, encodeURIComponent).join('+');
 
   const loginStyle = OAuth._loginStyle('office365', config, options);

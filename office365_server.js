@@ -12,6 +12,8 @@ const getTokens = function(query) {
 
   const redirectUri = OAuth._redirectUri('office365', config).replace('?close', '');
 
+  // https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/concepts/auth_v2_user.md
+
   let response;
   try {
     response = HTTP.post(
@@ -42,7 +44,7 @@ const getTokens = function(query) {
 const getIdentity = function(accessToken) {
   try {
     return HTTP.get(
-      'https://graph.microsoft.com/v1.0/me', {
+      'https://outlook.office.com/api/v2.0/me', {
         headers: {
           Authorization: `Bearer ${ accessToken }`,
           Accept: 'application/json',
@@ -57,15 +59,14 @@ const getIdentity = function(accessToken) {
 OAuth.registerService('office365', 2, null, function(query) {
   const data = getTokens(query);
   const identity = getIdentity(data.access_token);
-
   return {
     serviceData: {
-      id: identity.id,
+      id: identity.id || identity.Id,
       accessToken: OAuth.sealSecret(data.access_token),
       refreshToken: data.refresh_token ? OAuth.sealSecret(data.refresh_token) : null,
       expiresAt: data.expires_in ? data.expires_in*1000 + new Date().getTime() : null,
       scope: data.scope,
-      displayName: identity.displayName,
+      displayName: identity.displayName || identity.DisplayName,
       givenName: identity.givenName,
       surname: identity.surname,
       username: identity.userPrincipalName && identity.userPrincipalName.split('@')[0],
