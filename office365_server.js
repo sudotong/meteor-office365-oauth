@@ -6,7 +6,7 @@ Office365 = {};
 let userAgent = 'Meteor';
 if (Meteor.release) { userAgent += `/${ Meteor.release }`; }
 
-const getAccessToken = function(query) {
+const getTokens = function(query) {
   const config = ServiceConfiguration.configurations.findOne({service: 'office365'});
   if (!config) { throw new ServiceConfiguration.ConfigError(); }
 
@@ -35,7 +35,7 @@ const getAccessToken = function(query) {
   if (response.data.error) {
     throw new Error(`Failed to complete OAuth handshake with Microsoft Office365. ${ response.data.error }`);
   } else {
-    return response.data.access_token;
+    return response.data;
   }
 };
 
@@ -55,13 +55,16 @@ const getIdentity = function(accessToken) {
 };
 
 OAuth.registerService('office365', 2, null, function(query) {
-  const accessToken = getAccessToken(query);
-  const identity = getIdentity(accessToken);
+  const data = getTokens(query);
+  const identity = getIdentity(data.access_token);
 
   return {
     serviceData: {
       id: identity.id,
-      accessToken: OAuth.sealSecret(accessToken),
+      accessToken: OAuth.sealSecret(data.access_token),
+      refreshToken: OAuth.sealSecret(data.refresh_token),
+      expiresAt: data.expires_in,
+      scope: data.scope,
       displayName: identity.displayName,
       givenName: identity.givenName,
       surname: identity.surname,

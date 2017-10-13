@@ -1,8 +1,8 @@
 Package.describe({
-  name: 'lindoelio:office365-oauth',
-  version: '0.2.0',
+  name: 'sudotong:office365-oauth',
+  version: '0.2.1',
   summary: 'Microsoft Office 365 OAuth flow',
-  git: 'https://github.com/lindoelio/meteor-office365-oauth',
+  git: 'https://github.com/sudotong/meteor-office365-oauth',
   documentation: 'README.md'
 });
 
