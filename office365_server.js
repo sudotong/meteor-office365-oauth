@@ -62,8 +62,8 @@ OAuth.registerService('office365', 2, null, function(query) {
     serviceData: {
       id: identity.id,
       accessToken: OAuth.sealSecret(data.access_token),
-      refreshToken: OAuth.sealSecret(data.refresh_token),
-      expiresAt: data.expires_in,
+      refreshToken: data.refresh_token ? OAuth.sealSecret(data.refresh_token) : null,
+      expiresAt: data.expires_in ? data.expires_in*1000 + new Date().getTime() : null,
       scope: data.scope,
       displayName: identity.displayName,
       givenName: identity.givenName,
