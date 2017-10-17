@@ -47,7 +47,7 @@ const getIdentity = function(accessToken) {
       'https://outlook.office.com/api/v2.0/me', {
         headers: {
           Authorization: `Bearer ${ accessToken }`,
-          Accept: 'application/json',
+          'Content-Type': 'application/json',
           'User-Agent': userAgent
         }
       }).data;
@@ -59,6 +59,7 @@ const getIdentity = function(accessToken) {
 OAuth.registerService('office365', 2, null, function(query) {
   const data = getTokens(query);
   const identity = getIdentity(data.access_token);
+  if (!identity.userPrincipalName) identity.userPrincipalName = identity.EmailAddress;
   return {
     serviceData: {
       id: identity.id || identity.Id,
@@ -66,8 +67,8 @@ OAuth.registerService('office365', 2, null, function(query) {
       refreshToken: data.refresh_token ? OAuth.sealSecret(data.refresh_token) : null,
       expiresAt: data.expires_in ? data.expires_in*1000 + new Date().getTime() : null,
       scope: data.scope,
-      displayName: identity.displayName || identity.DisplayName,
-      givenName: identity.givenName,
+      displayName: identity.displayName || identity.DisplayName || identity.Alias,
+      givenName: identity.givenName || identity.Alias,
       surname: identity.surname,
       username: identity.userPrincipalName && identity.userPrincipalName.split('@')[0],
       userPrincipalName: identity.userPrincipalName,
