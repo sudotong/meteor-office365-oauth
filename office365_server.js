@@ -12,6 +12,9 @@ const getTokens = function(query) {
 
   const redirectUri = OAuth._redirectUri('office365', config).replace('?close', '');
 
+  const scope = config.permissions || ['offline_access', 'user.read'];
+  const flatScope = _.map(scope, encodeURIComponent).join('%20');
+
   // https://github.com/microsoftgraph/microsoft-graph-docs/blob/master/concepts/auth_v2_user.md
 
   let response;
@@ -23,6 +26,7 @@ const getTokens = function(query) {
           'User-Agent': userAgent
         },
         params: {
+          scope: scope.join(' '),
           grant_type: 'authorization_code',
           code: query.code,
           client_id: config.clientId,
@@ -63,8 +67,8 @@ OAuth.registerService('office365', 2, null, function(query) {
   return {
     serviceData: {
       id: identity.id || identity.Id,
-      accessToken: OAuth.sealSecret(data.access_token),
-      refreshToken: data.refresh_token ? OAuth.sealSecret(data.refresh_token) : null,
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
       expiresAt: data.expires_in ? data.expires_in*1000 + new Date().getTime() : null,
       scope: data.scope,
       displayName: identity.displayName || identity.DisplayName || identity.Alias,
