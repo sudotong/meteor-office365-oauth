@@ -29,7 +29,6 @@ const getAccessFromRefresh = function (refreshToken) {
 }
 
 const getTokens = function (query) {
-  let response;
   const config = ServiceConfiguration.configurations.findOne({ service: "office365" });
   if (!config) throw new ServiceConfiguration.ConfigError();
 
@@ -41,36 +40,33 @@ const getTokens = function (query) {
     state: query.state
   };
 
-  if (config.refresh_token) {
+  
+
+  if (query.refresh_token) {
     params.grant_type = "refresh_token";
-    params.refresh_token = config.refresh_token;
+    params.refresh_token = query.refresh_token;
   } else {
     params.grant_type = "authorization_code";
   }
 
   let initial_response = HTTP.post(`https://login.microsoftonline.com/${config.tenant || "common"}/oauth2/v2.0/token`, { headers: { Accept: "application/json", "User-Agent": userAgent }, params }).data;
 
-  if (initial_response && params.grant_type === "authorization_code") {
-    ServiceConfiguration.configurations.upsert({ service: "office365" }, {
-      $set: {
-        refresh_token: initial_response.refresh_token,
-      }
-    });
+  if (initial_response && params.grant_type === "authorization_code" && initial_response.refresh_token) {
+    // Meteor.users.update({'services.office365.refreshToken': }, { $set: { 'services.office365.refreshToken': initial_response.refresh_token } })
   }
 
   if (initial_response && params.grant_type === "refresh_token") {
-    ServiceConfiguration.configurations.upsert({ service: "office365" }, {
-      $set: {
-        refresh_token: false
-      }
-    });
+    // Meteor.users.update({'services.office365.refreshToken': }, { $set: { 'services.office365.refreshToken': false } })
   }
+
+  // console.log('getTokens', { query: Object.keys(query), initial_response: Object.keys(initial_response) })
 
   return initial_response;
 };
 
 const getIdentity = function (accessToken) {
   try {
+    if (!accessToken) return {};
     return HTTP.get("https://graph.microsoft.com/v1.0/me", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -80,6 +76,7 @@ const getIdentity = function (accessToken) {
     }).data;
   } catch (error) {
     console.log(error.message)
+    return {};
   }
 };
 
@@ -102,11 +99,11 @@ OAuth.registerService("office365", 2, null, function (query, other) {
   try {
     data = getTokens(query);
   } catch (error) {
-    console.log(error.message)
+    console.log('Error getting tokens from office365 query', error.message)
   }
 
   if (data) {
-    const identity = getIdentity(data.access_token);
+    const identity = getIdentity(data.access_token) || {};
 
     if (!identity.userPrincipalName) identity.userPrincipalName = identity.EmailAddress;
 
@@ -126,7 +123,7 @@ OAuth.registerService("office365", 2, null, function (query, other) {
       username: identity.userPrincipalName &&
         identity.userPrincipalName.split("@")[0],
       userPrincipalName: identity.userPrincipalName,
-      mail: identity.mail ? identity.mail : identity.userPrincipalName,
+      mail: identity.mail || identity.userPrincipalName,
       jobTitle: identity.jobTitle,
       mobilePhone: identity.mobilePhone,
       businessPhones: identity.businessPhones,
@@ -135,7 +132,7 @@ OAuth.registerService("office365", 2, null, function (query, other) {
     }
     return {
       serviceData,
-      options: { profile: { name: identity.givenName } }
+      options: { profile: { name: serviceData.givenName } }
     };
   } else {
     return {
