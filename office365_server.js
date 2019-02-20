@@ -41,20 +41,32 @@ const getTokens = function (query) {
     state: query.state
   };
 
-  if (Boolean(config.refresh_token)) {
+  if (config.refresh_token) {
     params.grant_type = "refresh_token";
     params.refresh_token = config.refresh_token;
-    ServiceConfiguration.configurations.upsert({ service: "office365" }, { $set: { refresh_token: '' } });
   } else {
     params.grant_type = "authorization_code";
   }
-  response = HTTP.post(`https://login.microsoftonline.com/${config.tenant || "common"}/oauth2/v2.0/token`, { headers: { Accept: "application/json", "User-Agent": userAgent }, params }).data;
 
-  if (response && params.grant_type === "authorization_code") {
-    ServiceConfiguration.configurations.upsert({ service: "office365" }, { $set: { refresh_token: response.refresh_token } });
+  let initial_response = HTTP.post(`https://login.microsoftonline.com/${config.tenant || "common"}/oauth2/v2.0/token`, { headers: { Accept: "application/json", "User-Agent": userAgent }, params }).data;
+
+  if (initial_response && params.grant_type === "authorization_code") {
+    ServiceConfiguration.configurations.upsert({ service: "office365" }, {
+      $set: {
+        refresh_token: initial_response.refresh_token,
+      }
+    });
   }
 
-  return response;
+  if (initial_response && params.grant_type === "refresh_token") {
+    ServiceConfiguration.configurations.upsert({ service: "office365" }, {
+      $set: {
+        refresh_token: false
+      }
+    });
+  }
+
+  return initial_response;
 };
 
 const getIdentity = function (accessToken) {
