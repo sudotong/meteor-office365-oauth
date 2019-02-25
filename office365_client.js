@@ -23,7 +23,7 @@ Office365.requestCredential = function(options, credentialRequestCompleteCallbac
   const loginStyle = OAuth._loginStyle('office365', config, options);
 
   // The Microsoft Office 365 Application not allow the parameter "close" at redirect URLs
-  const redirectUri = OAuth._redirectUri('office365', config).replace('?close', '');
+  const redirectUri = `${Meteor.absoluteUrl()}api/office365-auth`; //OAuth._redirectUri('office365', config).replace('?close', '');
 
   const loginUrl = `https://login.microsoftonline.com/${ config.tenant || 'common' }/oauth2/v2.0/authorize?client_id=${ config.clientId }&response_type=code&redirect_uri=${ redirectUri }&response_mode=query&scope=${ flatScope }&state=${ OAuth._stateParam(loginStyle, credentialToken, redirectUri) }`;
   OAuth.launchLogin({
