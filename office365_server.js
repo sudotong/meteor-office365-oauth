@@ -36,7 +36,7 @@ const getTokens = function (query) {
     scope: `offline_access openid profile User.Read Calendars.Read Calendars.ReadWrite`,
     code: query.code, client_id: config.clientId,
     client_secret: OAuth.openSecret(config.secret),
-    redirect_uri: OAuth._redirectUri("office365", config).replace("?close", ""),
+    redirect_uri: `${Meteor.absoluteUrl()}api/office365-auth`, // OAuth._redirectUri("office365", config).replace("?close", ""),
     state: query.state
   };
 
