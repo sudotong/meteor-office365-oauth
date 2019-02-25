@@ -49,7 +49,7 @@ const getTokens = function (config, query) {
 
   let initial_response = HTTP.post(`https://login.microsoftonline.com/${config.tenant || "common"}/oauth2/v2.0/token`, { headers: { Accept: "application/json", "User-Agent": userAgent }, params }).data;
 
-  console.log({initial_response});
+  // console.log({initial_response});
 
   if (initial_response && params.grant_type === "authorization_code" && initial_response.refresh_token) {
     // Meteor.users.update({'services.office365.refreshToken': }, { $set: { 'services.office365.refreshToken': initial_response.refresh_token } })
