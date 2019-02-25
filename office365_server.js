@@ -28,9 +28,7 @@ const getAccessFromRefresh = function (refreshToken) {
   return response.access_token;
 }
 
-const getTokens = function (query) {
-  const config = ServiceConfiguration.configurations.findOne({ service: "office365" });
-  if (!config) throw new ServiceConfiguration.ConfigError();
+const getTokens = function (config, query) {
 
   let params = {
     scope: `offline_access openid profile User.Read Calendars.Read Calendars.ReadWrite`,
@@ -51,6 +49,8 @@ const getTokens = function (query) {
 
   let initial_response = HTTP.post(`https://login.microsoftonline.com/${config.tenant || "common"}/oauth2/v2.0/token`, { headers: { Accept: "application/json", "User-Agent": userAgent }, params }).data;
 
+  console.log({initial_response});
+
   if (initial_response && params.grant_type === "authorization_code" && initial_response.refresh_token) {
     // Meteor.users.update({'services.office365.refreshToken': }, { $set: { 'services.office365.refreshToken': initial_response.refresh_token } })
   }
@@ -58,8 +58,6 @@ const getTokens = function (query) {
   if (initial_response && params.grant_type === "refresh_token") {
     // Meteor.users.update({'services.office365.refreshToken': }, { $set: { 'services.office365.refreshToken': false } })
   }
-
-  // console.log('getTokens', { query: Object.keys(query), initial_response: Object.keys(initial_response) })
 
   return initial_response;
 };
@@ -96,8 +94,14 @@ Meteor.methods({
 OAuth.registerService("office365", 2, null, function (query, other) {
   let data;
 
+  /**
+   * Make sure we have a config object for subsequent use (boilerplate)
+   */
+  const config = ServiceConfiguration.configurations.findOne({ service: "office365" });
+  if (!config) throw new ServiceConfiguration.ConfigError();
+
   try {
-    data = getTokens(query);
+    data = getTokens(config, query);
   } catch (error) {
     console.log('Error getting tokens from office365 query', error.message)
   }
