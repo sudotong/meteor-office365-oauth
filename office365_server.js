@@ -28,15 +28,19 @@ const getAccessFromRefresh = function (refreshToken) {
   return response.access_token;
 }
 
+let recentCodes = {};
+
 const getTokens = function (config, query) {
 
   let params = {
     scope: `offline_access openid profile User.Read Calendars.Read Calendars.ReadWrite`,
-    code: query.code, client_id: config.clientId,
+    code: query.code, 
+    client_id: config.clientId,
     client_secret: OAuth.openSecret(config.secret),
     redirect_uri: `${Meteor.absoluteUrl()}api/office365-auth`, // OAuth._redirectUri("office365", config).replace("?close", ""),
     state: query.state
   };
+  if (query.code && recentCodes[query.code]) return recentCodes[query.code];
 
   
 
@@ -48,7 +52,10 @@ const getTokens = function (config, query) {
   }
 
   let initial_response = HTTP.post(`https://login.microsoftonline.com/${config.tenant || "common"}/oauth2/v2.0/token`, { headers: { Accept: "application/json", "User-Agent": userAgent }, params }).data;
-
+  if (initial_response && query.code && !query.refresh_token){
+    recentCodes[query.code] = initial_response;
+    setTimeout(() => delete recentCodes[query.code], 5000);
+  }
   // console.log({initial_response});
 
   if (initial_response && params.grant_type === "authorization_code" && initial_response.refresh_token) {
