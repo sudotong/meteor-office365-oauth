@@ -87,7 +87,6 @@ const getIdentity = function (accessToken) {
 
 Meteor.methods({
   getEmail: function (refresh_token, access_token) {
-    console.log("this is being called")
     if (access_token) {
       let obj = getIdentity(access_token);
       return obj.mail || obj.userPrincipalName
