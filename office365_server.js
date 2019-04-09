@@ -29,6 +29,7 @@ const getAccessFromRefresh = function (refreshToken) {
 }
 
 let recentCodes = {};
+let codeTimeouts = {};
 
 const getTokens = function (config, query) {
 
@@ -40,7 +41,12 @@ const getTokens = function (config, query) {
     redirect_uri: `${Meteor.absoluteUrl()}api/office365-auth`, // OAuth._redirectUri("office365", config).replace("?close", ""),
     state: query.state
   };
-  if (query.code && recentCodes[query.code]) return recentCodes[query.code];
+
+  // console.log({getTokens: 'getTokens', query});
+
+  if (query.code && recentCodes[query.code]) {
+    return recentCodes[query.code] == 'querying' ? null : recentCodes[query.code];
+  }
 
   
 
@@ -49,10 +55,19 @@ const getTokens = function (config, query) {
     params.refresh_token = query.refresh_token;
   } else {
     params.grant_type = "authorization_code";
+    if (query.code){
+      recentCodes[query.code] = 'querying';
+      codeTimeouts[query.code] = setTimeout(() => delete recentCodes[query.code], 11000);
+    }
   }
 
+  // TODO look at params.code_verifier for Azure AD login
+  // if (query.code_verifier){
+    // params.code_verifier = query.code_verifier;
+  // }
   let initial_response = HTTP.post(`https://login.microsoftonline.com/${config.tenant || "common"}/oauth2/v2.0/token`, { headers: { Accept: "application/json", "User-Agent": userAgent }, params }).data;
   if (initial_response && query.code && !query.refresh_token){
+    if (codeTimeouts[query.code]) clearTimeout(codeTimeouts[query.code]);
     recentCodes[query.code] = initial_response;
     setTimeout(() => delete recentCodes[query.code], 5000);
   }
@@ -80,7 +95,7 @@ const getIdentity = function (accessToken) {
       }
     }).data;
   } catch (error) {
-    console.log(error.message)
+    console.log('error getting office365 identity',error.message)
     return {};
   }
 };
@@ -109,7 +124,7 @@ OAuth.registerService("office365", 2, null, function (query, other) {
   try {
     data = getTokens(config, query);
   } catch (error) {
-    console.log('Error getting tokens from office365 query', error.message)
+    console.log('Error getting tokens from office365 query', { message: error.message, config, query})
   }
 
   if (data) {
@@ -145,6 +160,7 @@ OAuth.registerService("office365", 2, null, function (query, other) {
       options: { profile: { name: serviceData.givenName } }
     };
   } else {
+    console.log('found no data for the user from query', {query});
     return {
       serviceData: {}
     }
