@@ -12,7 +12,7 @@ const getAccessFromRefresh = function (refreshToken) {
   let response;
   const config = ServiceConfiguration.configurations.findOne({ service: "office365" });
   if (!config) throw new ServiceConfiguration.ConfigError();
-  let params = {
+  const params = {
     scope: `offline_access openid profile User.Read Calendars.Read Calendars.ReadWrite`,
     client_id: config.clientId,
     client_secret: OAuth.openSecret(config.secret),
@@ -35,7 +35,7 @@ const getTokens = function (config, query) {
 
   let params = {
     scope: `offline_access openid profile User.Read Calendars.Read Calendars.ReadWrite`,
-    code: query.code, 
+    code: query.code,
     client_id: config.clientId,
     client_secret: OAuth.openSecret(config.secret),
     redirect_uri: `${Meteor.absoluteUrl()}api/office365-auth`, // OAuth._redirectUri("office365", config).replace("?close", ""),
@@ -48,14 +48,14 @@ const getTokens = function (config, query) {
     return recentCodes[query.code] == 'querying' ? null : recentCodes[query.code];
   }
 
-  
+
 
   if (query.refresh_token) {
     params.grant_type = "refresh_token";
     params.refresh_token = query.refresh_token;
   } else {
     params.grant_type = "authorization_code";
-    if (query.code){
+    if (query.code) {
       recentCodes[query.code] = 'querying';
       codeTimeouts[query.code] = setTimeout(() => delete recentCodes[query.code], 11000);
     }
@@ -63,10 +63,10 @@ const getTokens = function (config, query) {
 
   // TODO look at params.code_verifier for Azure AD login
   // if (query.code_verifier){
-    // params.code_verifier = query.code_verifier;
+  // params.code_verifier = query.code_verifier;
   // }
   let initial_response = HTTP.post(`https://login.microsoftonline.com/${config.tenant || "common"}/oauth2/v2.0/token`, { headers: { Accept: "application/json", "User-Agent": userAgent }, params }).data;
-  if (initial_response && query.code && !query.refresh_token){
+  if (initial_response && query.code && !query.refresh_token) {
     if (codeTimeouts[query.code]) clearTimeout(codeTimeouts[query.code]);
     recentCodes[query.code] = initial_response;
     setTimeout(() => delete recentCodes[query.code], 5000);
@@ -87,15 +87,22 @@ const getTokens = function (config, query) {
 const getIdentity = function (accessToken) {
   try {
     if (!accessToken) return {};
-    return HTTP.get("https://graph.microsoft.com/v1.0/me", {
+    const identity = HTTP.get("https://graph.microsoft.com/v1.0/me", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
         "User-Agent": userAgent
       }
-    }).data;
+    }).data
+    const emailKeys = ['mail', 'userPrincipalName', 'EmailAddress', 'mail'];
+    if (identity) {
+      emailsKeys.forEach(key => {
+        if (identity[key] && typeof identity[key] === 'string') identity[key] = identity[key].toLowerCase();
+      })
+    }
+    return identity;
   } catch (error) {
-    console.log('error getting office365 identity',error.message)
+    console.log('error getting office365 identity', error && error.message);
     return {};
   }
 };
@@ -104,7 +111,7 @@ Meteor.methods({
   getEmail: function (refresh_token, access_token) {
     if (access_token) {
       let obj = getIdentity(access_token);
-      return obj.mail || obj.userPrincipalName
+      return obj ? obj.mail || obj.userPrincipalName : null
     } else {
       let obj = getIdentity(getAccessFromRefresh(refresh_token));
       return obj.mail || obj.userPrincipalName
@@ -124,7 +131,7 @@ OAuth.registerService("office365", 2, null, function (query, other) {
   try {
     data = getTokens(config, query);
   } catch (error) {
-    console.log('Error getting tokens from office365 query', { message: error.message, config, query})
+    console.log('Error getting tokens from office365 query', { message: error.message, config, query })
   }
 
   if (data) {
@@ -136,17 +143,12 @@ OAuth.registerService("office365", 2, null, function (query, other) {
       id: identity.id || identity.Id,
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      expiresAt: data.expires_in
-        ? data.expires_in * 1000 + new Date().getTime()
-        : null,
+      expiresAt: data.expires_in ? data.expires_in * 1000 + new Date().getTime() : null,
       scope: data.scope,
-      displayName: identity.displayName ||
-        identity.DisplayName ||
-        identity.Alias,
+      displayName: identity.displayName || identity.DisplayName || identity.Alias,
       givenName: identity.givenName || identity.Alias || identity.displayName,
       surname: identity.surname,
-      username: identity.userPrincipalName &&
-        identity.userPrincipalName.split("@")[0],
+      username: identity.userPrincipalName && identity.userPrincipalName.split("@")[0],
       userPrincipalName: identity.userPrincipalName,
       mail: identity.mail || identity.userPrincipalName,
       jobTitle: identity.jobTitle,
@@ -160,7 +162,7 @@ OAuth.registerService("office365", 2, null, function (query, other) {
       options: { profile: { name: serviceData.givenName } }
     };
   } else {
-    console.log('found no data for the user from query', {query});
+    console.log('found no data for the user from query', { query });
     return {
       serviceData: {}
     }
