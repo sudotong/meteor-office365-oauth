@@ -96,7 +96,7 @@ const getIdentity = function (accessToken) {
     }).data
     const emailKeys = ['mail', 'userPrincipalName', 'EmailAddress', 'mail'];
     if (identity) {
-      emailsKeys.forEach(key => {
+      emailKeys.forEach(key => {
         if (identity[key] && typeof identity[key] === 'string') identity[key] = identity[key].toLowerCase();
       })
     }
