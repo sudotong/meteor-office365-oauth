@@ -31,6 +31,21 @@ const getAccessFromRefresh = function (refreshToken) {
 let recentCodes = {};
 let codeTimeouts = {};
 
+const separateReferral = function (state) {
+  let referral;
+  try {
+    const sep = encodeURIComponent('_ffr_');
+    if (state && typeof state === 'string' && state.includes(sep)) {
+      const [s, ref] = state.split(sep);
+      state = s;
+      referral = ref && decodeURIComponent(ref);
+    }
+  } catch (e) {
+    console.log(`unable to sep referral`)
+  }
+  return [state, referral];
+}
+
 const getTokens = function (config, query) {
 
   let params = {
@@ -128,6 +143,16 @@ OAuth.registerService("office365", 2, null, function (query, other) {
   const config = ServiceConfiguration.configurations.findOne({ service: "office365" });
   if (!config) throw new ServiceConfiguration.ConfigError();
 
+
+  let referral;
+  if (query) {
+    const [newState, ref] = separateReferral(query.state);
+    query.state = newState;
+    referral = ref;
+    // console.log(`office365_server:info`, `after state: ${query.state}, referral: ${referral}`);
+  }
+
+
   try {
     data = getTokens(config, query);
   } catch (error) {
@@ -157,9 +182,13 @@ OAuth.registerService("office365", 2, null, function (query, other) {
       officeLocation: identity.officeLocation,
       preferredLanguage: identity.preferredLanguage
     }
+    const profile = { name: serviceData.givenName }
+    if (referral) {
+      serviceData.referral = referral;
+    }
     return {
       serviceData,
-      options: { profile: { name: serviceData.givenName } }
+      options: { profile }
     };
   } else {
     console.log('found no data for the user from query', { query });
