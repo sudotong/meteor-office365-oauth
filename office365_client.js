@@ -31,10 +31,15 @@ Office365.requestCredential = function (options, credentialRequestCompleteCallba
 
   const loginStyle = OAuth._loginStyle('office365', config, options);
 
+  const extraParams = options.referral ? `${encodeURIComponent(`_ffr_${options.referral}`)}` : ``
+
   // The Microsoft Office 365 Application not allow the parameter "close" at redirect URLs
   const redirectUri = `${Meteor.absoluteUrl()}api/office365-auth`; // OAuth._redirectUri('office365', config).replace('?close', '');
   const forcePrompt = options.loginUrlParameters.prompt ? `&prompt=${options.loginUrlParameters.prompt}` : ``
-  const loginUrl = `https://login.microsoftonline.com/${config.tenant || 'common'}/oauth2/v2.0/authorize?client_id=${config.clientId}&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=${flatScope}&state=${OAuth._stateParam(loginStyle, credentialToken, redirectUri)}` + forcePrompt;
+  let state = OAuth._stateParam(loginStyle, credentialToken, redirectUri);
+  state = `${state}${extraParams}`;
+  // console.log(`office365.requestCredential`, { state }); 
+  const loginUrl = `https://login.microsoftonline.com/${config.tenant || 'common'}/oauth2/v2.0/authorize?client_id=${config.clientId}&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=${flatScope}&state=${state}` + forcePrompt;
 
   OAuth.launchLogin({
     loginService: 'office365',
